@@ -44,16 +44,16 @@ impl Bag
     }
 
     // Check if turtle is inside the bag
-    fn inside_bag(&self, turtle: &mut Turtle) -> bool {
+    fn outside_bag(&self, turtle: &mut Turtle) -> bool {
         let turtle_position: Point = turtle.position();
         let turtle_x: f64 = turtle_position.x;
         let turtle_y: f64 = turtle_position.y;
 
         if (turtle_x < self.origin.0) | (turtle_x > (self.origin.0 + self.side_length))
          | (turtle_y < self.origin.1) | (turtle_y > (self.origin.1 + self.side_length)) {
-            return false;
-        } else {
             return true;
+        } else {
+            return false;
         }
     }
 
@@ -95,28 +95,36 @@ fn main() {
 
     let path_choice: i32 = 0;
 
-    let distance: f64 = 1.0;
-    let coefficient: f64 = 1.02;
+    let distance: f64 = 10.0;
+    let coefficient: f64 = 1.5;
     let active_angle: f64 = 120.0;
 
+    let mut position_history: Vec<(f64, f64, bool)> = Vec::new();
+
     if path_choice == 0 {
-        draw_spirale(&mut turtle, &turtle_bag, active_angle, distance, coefficient, true);
+        draw_spirale(&mut turtle, &turtle_bag, active_angle, distance, coefficient, true, &mut position_history);
     } else if path_choice == 1 {
-        draw_line(&mut turtle, &turtle_bag, EAST, distance)
+        draw_line(&mut turtle, &turtle_bag, EAST, distance, &mut position_history)
     }
+
+    print_position_data(position_history);
 
 }
 
-fn draw_line(turtle: &mut Turtle, bag: &Bag, angle: f64, distance: f64) {
-    while bag.inside_bag(turtle) {
-        turtle.set_heading(angle);
+// Draws a straight line
+fn draw_line(turtle: &mut Turtle, bag: &Bag, heading_angle: f64, distance: f64, position_history: &mut Vec<(f64, f64, bool)>) {
+    while !bag.outside_bag(turtle) {
+        store_position_data(turtle, bag, position_history);
+        turtle.set_heading(heading_angle);
         turtle.forward(distance);
     }
 }
 
-fn draw_spirale(turtle: &mut Turtle, bag: &Bag, angle: f64, distance: f64, coefficient: f64, multiply: bool) {
+// Draws a spirale with a the given angle
+fn draw_spirale(turtle: &mut Turtle, bag: &Bag, angle: f64, distance: f64, coefficient: f64, multiply: bool, position_history: &mut Vec<(f64, f64, bool)>) {
     let mut step: f64 = distance;
-    while bag.inside_bag(turtle) {
+    while !bag.outside_bag(turtle) {
+        store_position_data(turtle, bag, position_history);
         turtle.left(angle);
         turtle.forward(step);
         if multiply {
@@ -124,5 +132,19 @@ fn draw_spirale(turtle: &mut Turtle, bag: &Bag, angle: f64, distance: f64, coeff
         } else {
             step += coefficient;
         }
+    }
+}
+
+// Stores the turtle's position data per step
+fn store_position_data(turtle: &mut Turtle, bag: &Bag, position_log: &mut Vec<(f64, f64, bool)>) {
+    let t_position = turtle.position();
+    let t_escaped: bool = bag.outside_bag(turtle);
+    position_log.push((t_position.x, t_position.y, t_escaped));
+}
+
+// Prints the data stored in the position_history vector
+fn print_position_data(position_history: Vec<(f64, f64, bool)>) {
+    for _i in position_history {
+        println!("({} {}) {}", _i.0, _i.1, _i.2);
     }
 }
