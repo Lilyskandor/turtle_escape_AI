@@ -73,6 +73,7 @@ fn teleport(turtle: &mut Turtle, target_coord: (f64, f64)) {
 }
 
 fn main() {
+    // Initialising
     let mut turtle: Turtle = Turtle::new();
     turtle.set_pen_color("black");
     turtle.set_pen_size(1.0);
@@ -85,21 +86,22 @@ fn main() {
         corner_angle: ANGLE_RIGHT,
         orientation: WEST
     };
-    turtle_bag.draw_bag(&mut turtle);
-    turtle_bag.teleport_center_bag(&mut turtle);
-
-    turtle.set_heading(WEST);
-
 
     let bag_center: (f64, f64) = turtle_bag.get_center();
 
-    let path_choice: i32 = 0;
+    turtle_bag.draw_bag(&mut turtle);
+    turtle_bag.teleport_center_bag(&mut turtle);
+    turtle.set_heading(WEST);
 
+    let mut position_history: Vec<(f64, f64, bool)> = Vec::new();
+    store_position_data(&mut turtle, &turtle_bag, &mut position_history);
+
+    // OPTIONS
+    let path_choice: i32 = 0;
     let distance: f64 = 10.0;
     let coefficient: f64 = 1.5;
     let active_angle: f64 = 120.0;
 
-    let mut position_history: Vec<(f64, f64, bool)> = Vec::new();
 
     if path_choice == 0 {
         draw_spirale(&mut turtle, &turtle_bag, active_angle, distance, coefficient, true, &mut position_history);
@@ -114,9 +116,9 @@ fn main() {
 // Draws a straight line
 fn draw_line(turtle: &mut Turtle, bag: &Bag, heading_angle: f64, distance: f64, position_history: &mut Vec<(f64, f64, bool)>) {
     while !bag.outside_bag(turtle) {
-        store_position_data(turtle, bag, position_history);
         turtle.set_heading(heading_angle);
         turtle.forward(distance);
+        store_position_data(turtle, bag, position_history);
     }
 }
 
@@ -124,7 +126,6 @@ fn draw_line(turtle: &mut Turtle, bag: &Bag, heading_angle: f64, distance: f64, 
 fn draw_spirale(turtle: &mut Turtle, bag: &Bag, angle: f64, distance: f64, coefficient: f64, multiply: bool, position_history: &mut Vec<(f64, f64, bool)>) {
     let mut step: f64 = distance;
     while !bag.outside_bag(turtle) {
-        store_position_data(turtle, bag, position_history);
         turtle.left(angle);
         turtle.forward(step);
         if multiply {
@@ -132,6 +133,7 @@ fn draw_spirale(turtle: &mut Turtle, bag: &Bag, angle: f64, distance: f64, coeff
         } else {
             step += coefficient;
         }
+        store_position_data(turtle, bag, position_history);
     }
 }
 
