@@ -79,7 +79,7 @@ fn main() {
 
     let origin: (f64, f64) = (0.0, 0.0);
 
-    let turtle_bag = Bag {
+    let turtle_bag: Bag = Bag {
         origin,
         side_length: 100.0,
         corner_angle: ANGLE_RIGHT,
