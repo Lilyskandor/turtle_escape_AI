@@ -1,6 +1,7 @@
 #![allow(unused_variables, dead_code)]
 use turtle::Turtle;
 use turtle::Point;
+use std::env;
 
 const ANGLE_ZERO: f64 = 0.0;
 const ANGLE_RIGHT: f64 = 90.0;
@@ -73,6 +74,12 @@ fn teleport(turtle: &mut Turtle, target_coord: (f64, f64)) {
 }
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    let path_choice = args[1].parse::<i32>().expect("Error reading path_choice");
+    let distance = args[2].parse::<f64>().expect("Error reading distance");
+    let coefficient = args[3].parse::<f64>().expect("Error reading coefficient");
+    let active_angle: f64 = args[4].parse::<f64>().expect("Error reading active_angle");
+
     // Initialising
     let mut turtle: Turtle = Turtle::new();
     turtle.set_pen_color("black");
@@ -95,13 +102,6 @@ fn main() {
 
     let mut position_history: Vec<(f64, f64, bool)> = Vec::new();
     store_position_data(&mut turtle, &turtle_bag, &mut position_history);
-
-    // OPTIONS
-    let path_choice: i32 = 0;
-    let distance: f64 = 10.0;
-    let coefficient: f64 = 1.5;
-    let active_angle: f64 = 120.0;
-
 
     if path_choice == 0 {
         draw_spirale(&mut turtle, &turtle_bag, active_angle, distance, coefficient, true, &mut position_history);
