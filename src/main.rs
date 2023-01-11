@@ -21,6 +21,7 @@ const NORTH: f64 = 90.0;
 const EAST: f64 = 180.0;
 const SOUTH: f64 = 270.0;
 
+// Convenient structure to store what we actually care about
 #[derive(Copy, Clone, Debug, PartialEq)]
 struct Node { coords: Point, outside: bool }
 
@@ -188,7 +189,7 @@ fn print_position_data(position_history: &Vec<Node>) {
     }
 }
 
-// Writes the history of positions into a file
+// Writes the history of positions into a log file
 fn write_position_data(position_history: &Vec<Node>, log_file_path: &str) {
 
     let file_name = log_file_path;
@@ -208,7 +209,7 @@ fn write_position_data(position_history: &Vec<Node>, log_file_path: &str) {
     println!("> Position history has been written in file: {}", file_name);
 }
 
-// Supposedly reads the data written in the file turtle.log. Panics if anything goes wrong
+// Reads the data written in the given log file. Panics if anything goes wrong
 fn read_position_data(log_file_path: &str) -> Vec<Node>{
 
     let mut loaded_position_history = Vec::<Node>::new();
@@ -222,17 +223,23 @@ fn read_position_data(log_file_path: &str) -> Vec<Node>{
         Err(err) => return loaded_position_history,
     };
 
+    // The reader buffer, handles all readings in one go (system wise) to gain speeeeed
     let reader = BufReader::new(&log_file);
+    // Iterating over the obtained lines
     for line_result in reader.lines() {
+        // Check every reading, and if an error is met: PANICS
         let line = line_result.unwrap();
         
         let mut elements = Vec::<&str>::new();
+        // Split along the whitespaces and push everything into a convenient vector
         for element in line.split_whitespace() {
             elements.push(element);
         }
+        // Convert the elements into coords and outside boolean. Panics if any conversion goes wrong
         let coords = Point { x: f64::from_str(elements[0]).unwrap(), y: f64::from_str(elements[1]).unwrap() };
         let outside = bool::from_str(elements[2]).unwrap();
 
+        // Push our new loaded Node to our collection of Nodes
         loaded_position_history.push(Node { coords, outside});
     }
 
