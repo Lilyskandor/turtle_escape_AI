@@ -2,6 +2,7 @@
 use turtle::Turtle;
 use turtle::Point;
 use std::env;
+use std::fs;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::BufWriter;
@@ -21,22 +22,45 @@ const NORTH: f64 = 90.0;
 const EAST: f64 = 180.0;
 const SOUTH: f64 = 270.0;
 
+#[derive(Copy, Clone, PartialEq)]
+enum Pattern {
+    Line,
+    Spirale,
+}
+impl Pattern {
+    fn to_str(pattern: Pattern) -> String {
+        match pattern {
+            Pattern::Line => "Line".to_string(),
+            Pattern::Spirale => "Spirale".to_string(),
+        }
+    }
+
+    fn to_pattern(pattern: i32) -> Pattern {
+        match pattern {
+            0 => Pattern::Line,
+            1 => Pattern::Spirale,
+            _ => Pattern::Line,
+        }
+    }
+}
+
 // Convenient structure to store what we actually care about
 #[derive(Copy, Clone, Debug, PartialEq)]
 struct Node { coords: Point, outside: bool }
 
 struct Options {
-    pattern: i32,
+    pattern: Pattern,
     step_length: f64,
     change_coefficient: f64,
     angle: f64,
+    direction: f64,
     log_file_path: String,
 }
 impl Options {
     fn print_options (&self) {
-        println!("Running with pattern N°{} with a step {}u long, a coefficient of {} and a turning angle of {}°."
-        , self.pattern, self.step_length, self.change_coefficient, self.angle);
-        println!("Log file path: {}", self.log_file_path);
+        println!("Options:");
+        println!("\tPattern {}\n\tStep_Length {}\n\tCoefficient {}\n\tAngle {}\n\tDirection {}\n\tLogFile {}"
+        , Pattern::to_str(self.pattern), self.step_length, self.change_coefficient, self.angle, self.direction, self.log_file_path);
     }
 }
 
@@ -97,22 +121,40 @@ fn teleport(turtle: &mut Turtle, target_coord: (f64, f64)) {
 fn main() {
     // Default Options values
     let mut options = Options {
-        pattern: 0,
+        pattern: Pattern::Line,
         step_length: 10.,
         change_coefficient: 1.5,
         angle: 45.,
+        direction: WEST,
         log_file_path: format!("turtle.log"),
     };
 
     // Update options if given in args
     let args: Vec<String> = env::args().collect();
-    if args.len() == 6 {
-        let error_message = format!("Usage: <i32>Pattern_Number <f64>Step_Length <f64>Change_Coefficient <f64>Angle <String>Log_File_Path");
-        options.pattern = args[1].parse::<i32>().expect(&error_message);
-        options.step_length = args[2].parse::<f64>().expect(&error_message);
-        options.change_coefficient = args[3].parse::<f64>().expect(&error_message);
-        options.angle = args[4].parse::<f64>().expect(&error_message);
-        options.log_file_path = args[5].clone();
+//    let error_message = format!("Usage: <i32>Pattern_Number <f64>Step_Length <f64>Change_Coefficient <f64>Angle <String>Log_File_Path");
+    if args.len() == 2 {
+        println!("Usage: LogFile [0:Line ; 1:Spirale] StepsLength [DirectionAngle ; TurningAngle, Coefficient]");
+    } else if args.len() > 2 {
+        let mut error_message = format!("Usage: <String>Log_File_Path");
+        options.log_file_path = args[1].clone();
+
+        error_message += " <i32>Pattern_Number[0==Line, 1==Spirale]";
+        options.pattern = Pattern::to_pattern(args[2].parse::<i32>().expect(&error_message));
+
+        error_message += " <f64>Steps_Length";
+        options.step_length = args[3].parse::<f64>().expect(&error_message);
+    
+        if options.pattern == Pattern::Line {
+            error_message += " <f64>Direction_Angle[0.0==WEST, 90.0==North]";
+            options.direction = args[4].parse::<f64>().expect(&error_message);
+
+        } else if options.pattern == Pattern::Spirale {
+            error_message += " <f64>Turning_Angle";
+            options.angle = args[4].parse::<f64>().expect(&error_message);
+
+            error_message += " <f64>Coefficient_Multiplier";
+            options.change_coefficient = args[5].parse::<f64>().expect(&error_message);            
+        }
     }
 
     // Remove mutability from the options
@@ -120,12 +162,13 @@ fn main() {
 
     options.print_options();
 
-    // Initialise the history of positions the turtle will go through
-    let mut position_history = read_position_data(&options.log_file_path);
-
+    let previous_position_history = read_position_data(&options.log_file_path);
     println!("Current data in log file <=");
-    print_position_data(&position_history);
+    print_position_data(&previous_position_history);
     println!("=> End of data in log file.");
+
+    // Initialise the history of positions the turtle will go through
+    let mut position_history = Vec::<Node>::new();
     
     // Initialising the Turtle
     let mut turtle: Turtle = Turtle::new();
@@ -133,7 +176,7 @@ fn main() {
     turtle.set_pen_size(1.0);
 
     // Creating the Turtle's bag
-    let turtle_bag: Bag = Bag {
+    let turtle_bag = Bag {
         origin: Point {x: 0., y: 0.},
         side_length: 100.0,
         orientation: WEST
@@ -142,57 +185,50 @@ fn main() {
     // Drawing the bag and placing the turtle inside of it
     turtle_bag.draw_bag(&mut turtle, ANGLE_RIGHT);
     turtle_bag.teleport_center_bag(&mut turtle);
-    turtle.set_heading(WEST);
+    turtle.set_heading(options.direction);
 
     // Add the starting point
     store_position_data(&mut turtle, &turtle_bag, &mut position_history);
 
-    // Choosing which premade pattern algorithm to follow
-    if options.pattern == 0 {
-        draw_spirale(&mut turtle, &turtle_bag, &options, true, &mut position_history);
-    } else if options.pattern == 1 {
-        draw_line(&mut turtle, &turtle_bag, &options, &mut position_history)
-    }
+    draw_something(&mut turtle, &turtle_bag, &options, &mut position_history);
 
+    println!("===============");
+    println!("New Data written in: {} <=", &options.log_file_path);
     // Print the data we got so far
     print_position_data(&position_history);
 
     // Write the history of positions into a file (turtle.log)
     write_position_data(&position_history, &options.log_file_path);
 
-    println!("== END ==");
+    println!(">= Data written.");
+    println!("== END OF EXECUTION ==");
 
 }
 
-// Draws a straight line
-fn draw_line(turtle: &mut Turtle, bag: &Bag, options: &Options, position_history: &mut Vec<Node>) {
-    while !bag.outside_bag(turtle) {
-        turtle.set_heading(options.angle);
-        turtle.forward(options.step_length);
+// Draws according to the drawing algorithm decided in the options
+fn draw_something(turtle: &mut Turtle, bag: &Bag, options: &Options, position_history: &mut Vec<Node>) -> bool {
+    let mut did_i_leave = bag.outside_bag(turtle);
+    let mut distance = options.step_length;
+    while !did_i_leave {
+        match options.pattern {
+            Pattern::Line => turtle.forward(distance),
+            Pattern::Spirale => {
+                turtle.left(options.angle);
+                turtle.forward(distance);
+                distance = distance * options.change_coefficient;              
+            },
+        };
+        did_i_leave = bag.outside_bag(turtle);
         store_position_data(turtle, bag, position_history);
     }
-}
-
-// Draws a spirale with a the given angle
-fn draw_spirale(turtle: &mut Turtle, bag: &Bag, options: &Options, multiply: bool, position_history: &mut Vec<Node>) {
-    let mut step: f64 = options.step_length;
-    while !bag.outside_bag(turtle) {
-        turtle.left(options.angle);
-        turtle.forward(step);
-        if multiply {
-            step *= options.change_coefficient;
-        } else {
-            step += options.change_coefficient;
-        }
-        store_position_data(turtle, bag, position_history);
-    }
+    did_i_leave
 }
 
 // Stores the turtle's position data per step
-fn store_position_data(turtle: &mut Turtle, bag: &Bag, position_log: &mut Vec<Node>) {
+fn store_position_data(turtle: &mut Turtle, bag: &Bag, position_history: &mut Vec<Node>) {
     let coords = turtle.position();
-    let outside: bool = bag.outside_bag(turtle);
-    position_log.push(Node { coords, outside });
+    let outside = bag.outside_bag(turtle);
+    position_history.push(Node { coords, outside });
 }
 
 // Prints the data stored in the position_history vector
@@ -202,12 +238,23 @@ fn print_position_data(position_history: &Vec<Node>) {
     }
 }
 
+// If it exists, rename the previous log file by adding a ".bak" at the end of it
+fn backup_logfile(log_file_path: &str)
+{
+    // Check if file already exists, and if it does, toss it aside to avoid apending
+    if std::path::Path::new(log_file_path).exists() {
+        fs::rename(log_file_path, log_file_path.to_owned() + ".bak").unwrap();
+    }
+}
+
 // Writes the history of positions into a log file
 fn write_position_data(position_history: &Vec<Node>, log_file_path: &str) {
 
+    backup_logfile(log_file_path);
+
     let file_name = log_file_path;
 
-    // Create a new file, smash it if it already exists
+    // Create a new file
     let mut log_file = File::create(&file_name).unwrap();
     
     // Build up the data into a buffer, which will then write everything at once when we hit a .flush()
